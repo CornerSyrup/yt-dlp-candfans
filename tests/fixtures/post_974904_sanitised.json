@@ -1,0 +1,77 @@
+{
+  "status": "SUCCESS",
+  "message": "離線 fixture 回應。",
+  "data": {
+    "post": {
+      "is_sales_only": false,
+      "page_view": 47699,
+      "attachment_play_count": 79649,
+      "month": "2025-06",
+      "post_id": 974904,
+      "user_id": 100001,
+      "user_code": "example_creator",
+      "username": "測試創作者 🧪",
+      "post_date": "2025-06-12 00:15:58",
+      "contents_type": 2,
+      "post_type": 1,
+      "title": "測試影片 974904：「Unicode」🎬",
+      "contents_text": "這是公開離線測試資料。\n日本語テスト / English \"quotes\" 🎬",
+      "price": 0,
+      "contents_path1": "/user/100001/post/974904/main.m3u8",
+      "contents_path2": "",
+      "contents_path3": "",
+      "contents_path4": "",
+      "contents_path5": "",
+      "low_resolution_path": "",
+      "movie_time": 1947,
+      "audio_time": null,
+      "sample_time": 28,
+      "thumbnail_file": "/user/100001/post/974904/thumbnail.jpg",
+      "sample_file": "/user/100001/post/974904/sample.m3u8",
+      "can_browsing": 1,
+      "can_read_text": true,
+      "is_downloadable": false,
+      "is_progressed": true,
+      "has_own_thumbnail": 1,
+      "has_own_sample": 1,
+      "attachments": [
+        {
+          "default": "https://media.example.invalid/user/100001/post/974904/main.m3u8",
+          "low": null,
+          "preview": null
+        }
+      ],
+      "attachment_length": 1947,
+      "post_prices": {
+        "original_price": 0,
+        "discounted_price": 0,
+        "discount_percentage": 0,
+        "final_price": 0
+      },
+      "plans": [
+        {
+          "plan_id": 0,
+          "plan_name": "Synthetic fixture plan",
+          "is_joined_plan": true,
+          "support_price": 0
+        }
+      ],
+      "post_attachments": [
+        {
+          "id": 1442311,
+          "post_id": 974904,
+          "type": 1,
+          "default_path": "main.m3u8",
+          "original_extension": null,
+          "low_resolution_path": null,
+          "path_720": null,
+          "path_1080": null,
+          "preview_path": null,
+          "length": 1947,
+          "created_at": "2025-06-11T14:31:13.000000Z",
+          "updated_at": "2025-06-11T14:45:48.000000Z"
+        }
+      ]
+    }
+  }
+}

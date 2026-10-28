@@ -1,0 +1,2 @@
+# Runtime itself is supplied by official yt-dlp.exe. Only offline test development needs pip.
+yt-dlp==2026.8.19

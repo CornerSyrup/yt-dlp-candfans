@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-tests:
+    name: Offline tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.12', '3.13']
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install pinned test dependency
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - name: Check public fixture safety
+        run: python scripts/check_public_fixtures.py
+      - name: Run offline unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Build standalone plugin
+        run: python scripts/build.py --output dist/yt-dlp-candfans.zip
+      - name: Verify archive and reproducible build
+        run: python scripts/verify_archive.py --archive dist/yt-dlp-candfans.zip --checksums dist/SHA256SUMS.txt
+      - name: Upload tested plugin
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: plugin-${{ runner.os }}-python-${{ matrix.python }}
+          path: |
+            dist/yt-dlp-candfans.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-exe:
+    name: Official Windows EXE offline smoke
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Check public fixture safety
+        run: python scripts/check_public_fixtures.py
+      - name: Build and verify plugin
+        run: |
+          python scripts/build.py --output dist/yt-dlp-candfans.zip
+          python scripts/verify_archive.py --archive dist/yt-dlp-candfans.zip
+      - name: Download official pinned EXE and verify upstream checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '2026.10.26'
+          $baseUrl = "https://github.com/yt-dlp/yt-dlp/releases/download/$version"
+          New-Item -ItemType Directory -Path .ci-tools -Force | Out-Null
+          Invoke-WebRequest "$baseUrl/yt-dlp.exe" -OutFile .ci-tools/yt-dlp.exe
+          Invoke-WebRequest "$baseUrl/SHA2-256SUMS" -OutFile .ci-tools/SHA2-256SUMS
+          $lines = @(Get-Content .ci-tools/SHA2-256SUMS | Where-Object { $_ -match '^[a-fA-F0-9]{64}\s+\*?yt-dlp\.exe\s*$' })
+          if ($lines.Count -ne 1) { throw 'Missing or ambiguous upstream EXE checksum' }
+          $expected = ($lines[0] -split '\s+')[0]
+          $actual = (Get-FileHash .ci-tools/yt-dlp.exe -Algorithm SHA256).Hash
+          if ($actual -ne $expected) { throw 'Official yt-dlp.exe checksum mismatch' }
+          $reportedVersion = & ./.ci-tools/yt-dlp.exe --ignore-config --version
+          if ($LASTEXITCODE -ne 0 -or $reportedVersion -ne $version) { throw 'Unexpected official yt-dlp version' }
+      - name: Verify ZIP discovery and fixture CLI extraction
+        run: python scripts/verify_windows.py --exe .ci-tools/yt-dlp.exe --zip dist/yt-dlp-candfans.zip --output ci-verification
+      - name: Upload offline smoke report
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: windows-exe-offline-report
+          path: ci-verification/*
+          if-no-files-found: ignore
+          retention-days: 14

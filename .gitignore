@@ -218,3 +218,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# CandFans local credentials, generated test output and media
+cookies*.txt
+*.cookies
+session*.txt
+.test-tmp/
+.ci-tools/
+.ci-verification/
+verification*/
+downloaded*.txt
+*.mp4
+*.mkv
+*.ts
+*.jpg
+*.jpeg
+*.png
+# Private originals must never replace the sanitised public fixtures
+timeline_page_original.json
+post_974904_curated.json
+tests/fixtures/raw/

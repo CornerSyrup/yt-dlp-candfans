@@ -1,0 +1,42 @@
+{
+  "source": "Sanitised derivative of user-supplied timeline evidence; not live-verified or byte-identical to original",
+  "post_count": 9,
+  "post_ids": [
+    832491,
+    832478,
+    832465,
+    832461,
+    832159,
+    832156,
+    832053,
+    832050,
+    832036
+  ],
+  "all_post_type_1": true,
+  "all_contents_type_2": true,
+  "all_can_browsing_1": true,
+  "all_is_downloadable_false": true,
+  "attachments_per_post": [
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+  ],
+  "sanitised_fields": [
+    "creator identity",
+    "post text",
+    "category text",
+    "plan text",
+    "media URLs",
+    "profile image paths",
+    "media filenames",
+    "plan prices and IDs",
+    "plan dates"
+  ],
+  "sha256_of_sanitised_timeline": "4237b783dab9abab92bfdaab0a108b3c41ba8d42dfab5fecdc9e05fb5c0d8ca8"
+}
