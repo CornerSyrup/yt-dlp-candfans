@@ -12,7 +12,7 @@
 | `is_downloadable=false` | 原始觀察中 timeline 與單篇均為 false，同時有瀏覽旗標與 HLS URL | 網站精確語意未知。保守阻擋 HLS 擷取與下載，沒有 override；metadata-only 僅讀 API 授權回傳欄位。 |
 | 許可下載分支 | 未提供真實 `is_downloadable=true` 回應 | 只有 synthetic 測試；API true 不取代使用者必須具有的合法下載許可。 |
 | `can_browsing` | 原觀察為數值 1 | 下載只接受數值 1 或布林 true，其餘拒絕，不推測其他 enum。 |
-| thumbnail | 原 `thumbnail_file` 為相對路徑，主機未知 | 預設省略；API 絕對 HTTPS URL 可接受。相對路徑須使用者提供已查證 `thumbnail_origin`；不接受 path/query/fragment/帳密，不猜用影片 CDN。 |
+| thumbnail | 使用者確認 `974904` 圖片為 `https://video.candfans.jp/user/1422016/post/974904/thumbnail.jpg`，與其 API 相對路徑相符 | 相符的 `/user/<user_id>/post/<post_id>/thumbnail.jpg` 預設接到該 HTTPS origin。這是使用者確認的單篇證據，不是本工具 live 驗證，也不證明所有貼文／主機。API 絕對 HTTPS URL 可接受；其他相對路徑／主機可由使用者提供已查證 `thumbnail_origin`，不接受 path/query/fragment/帳密。 |
 | `post_date` | 無時區字串，網站日本情境 | 暫依 JST UTC+09:00 換算，仍待 API 確認；`upload_date` 使用 UTC 日期，可能與日本日期相差一天。 |
 | duration／多附件 | `movie_time`、`attachment_length` 與部分 `post_attachments[].length` | 依可唯一識別的路徑對應，不依陣列位置猜測；完整穩定附件 contract 未建立。媒體 origin/path 改變可能影響 archive ID。 |
 | Laravel Sanctum | 使用者登入失敗 trace 曾提到該 middleware | 不證明特定 Cookie、CSRF 或 header 需求。只使用 yt-dlp cookie jar，不猜名稱、自動登入或例行取得帳號資料。 |
@@ -20,6 +20,6 @@
 | HLS | 觀察資料含完整 URL，但下載旗標為 false | 公開網址已替換為 `.invalid`。manifest parsing 與許可分支完全離線；真實 CDN、Cookie、referer 與有效期未確認。 |
 | 封面內嵌／MP4 | 原生 yt-dlp postprocessor 與 FFmpeg 工具鏈 | 用本地 synthetic HLS／JPEG 實際內嵌並檢查 attached_pic 與圖片 SHA256；不代表已成功下載 CandFans 封面或媒體。metadata-only 不儲存影片或內嵌。 |
 | Windows ZIP loader | 官方 EXE 搭配本機 JSON 檢查正式 ZIP 的兩個 IE，再做 fixture CLI mock | 部分版本的 `--list-extractors` 先於 plugin 載入，listing 不含 plugin 不代表載入失敗。測試工具不包含在正式 ZIP。 |
-| live 驗收 | 沒有成功的真實 Cookie、已登入 API 或實際下載驗證 | 在授權環境驗證 lookup、跨頁、單篇、主機、旗標、時區與媒體；CI 不接觸 CandFans 或私人工作階段。 |
+| live 驗收 | 本工具沒有成功的真實 Cookie、已登入 API 或實際下載驗證；使用者另確認上述單篇 thumbnail URL | 在授權環境驗證 lookup、跨頁、其他單篇／主機、旗標、時區與媒體；使用者提供的 URL 證據與本工具 mock 結果分開記錄。CI 不接觸 CandFans 或私人工作階段。 |
 
 公開回報只提交最小、去識別的 JSON 與版本資訊。新增 API 證據時同步更新 fixture 與測試，不能把 synthetic 許可或網址當成已驗證 contract；勿提交真實 Cookie、帳號資料、簽名 URL、付費內容或 backend trace。

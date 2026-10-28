@@ -136,8 +136,10 @@ def run(executable: Path, archive: Path, destination: Path):
         assert parsed['title'] == expected_post['title'], 'Unicode metadata was not preserved'
         assert parsed['id'] == '974904' and parsed['duration'] == 1947
         assert parsed['timestamp'] == 1749654958 and parsed['upload_date'] == '20250611'
-        assert not parsed.get('formats') and not parsed.get('thumbnail')
+        assert not parsed.get('formats')
+        assert parsed['thumbnail'] == 'https://video.candfans.jp/user/100001/post/974904/thumbnail.jpg'
         assert 'media.example.invalid' not in metadata.stdout
+        assert '.m3u8' not in metadata.stdout
 
         blocked = invoke('permission-false-blocked', common + [post_url], expected=1)
         assert 'is_downloadable' in blocked.stderr

@@ -1,7 +1,7 @@
 """Validate the installable ZIP, reproducibility and optional SHA256SUMS output.
 
 Uses only the Python standard library. The release asset contains the production
-extractor alone; fixtures, test transports and credentials cannot enter the ZIP.
+extractor and its MIT licence; fixtures, test transports and credentials cannot enter the ZIP.
 """
 from __future__ import annotations
 
@@ -22,11 +22,13 @@ def verify(archive: Path, checksums: Path | None = None) -> str:
     root = Path(__file__).resolve().parents[1]
     archive = archive.resolve()
     with zipfile.ZipFile(archive) as package:
-        if package.namelist() != [PAYLOAD]:
+        if package.namelist() != ['LICENSE', PAYLOAD]:
             raise SystemExit(f'Unexpected ZIP namespace or extra payload: {package.namelist()}')
         if package.testzip() is not None:
             raise SystemExit('ZIP CRC verification failed')
         source = package.read(PAYLOAD)
+        if package.read('LICENSE') != (root / 'LICENSE').read_bytes():
+            raise SystemExit('ZIP licence does not match the repository licence')
     if source != (root / PAYLOAD).read_bytes():
         raise SystemExit('ZIP extractor does not match the checked-out source')
     tree = ast.parse(source.decode('utf-8'))

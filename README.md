@@ -78,19 +78,19 @@ timeline 使用已知的 `post_type[]=1`，按需要請求 `page=1,2,...`，直�
 
 ## 封面載入與內嵌
 
-API 提供有效絕對 HTTPS `thumbnail_file` 時可直接使用。相對路徑因主機未知而預設省略；若你已查證圖片來源，可明確指定 `thumbnail_origin`。它只接受 HTTPS origin，不接受 path、query、fragment 或帳密：
+API 提供有效絕對 HTTPS `thumbnail_file` 時可直接使用。使用者已確認貼文 `974904` 的圖片為 `https://video.candfans.jp/user/1422016/post/974904/thumbnail.jpg`，與該篇 API 的相對路徑相符。因此，相符的 `/user/<user_id>/post/<post_id>/thumbnail.jpg` 路徑預設使用 `https://video.candfans.jp`，一般指令不再需要指定主機：
 
 ```powershell
-# 將 YOUR_VERIFIED_THUMBNAIL_HOST 換成已查證的來源，勿猜用影片 CDN
 .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
-    --extractor-args 'candfanspost:thumbnail_origin=https://YOUR_VERIFIED_THUMBNAIL_HOST' `
     -N 8 -c --embed-thumbnail --remux-video mp4 `
     'https://candfans.jp/posts/comment/show/974904'
 ```
 
 `--embed-thumbnail` 使用 yt-dlp 原生 EmbedThumbnail postprocessor，依容器使用 Mutagen／FFmpeg 等；plugin 提供 URL，不會強制啟用內嵌。必要時可加 `--convert-thumbnails jpg`。封面來源設定不會改變下載旗標。
 
-只查 URL 時可用 `--extractor-args 'candfanspost:metadata_only=true;thumbnail_origin=https://YOUR_VERIFIED_THUMBNAIL_HOST'` 配合前述 metadata 指令；會輸出 thumbnail URL，但不儲存影片或內嵌封面。更多手動指令見 [Windows_commands.ps1](examples/Windows_commands.ps1)，整份範例皆為註解。
+這項主機證據是**使用者確認的單一 `974904` 範例**，不是本工具完成的 live 請求，也不表示其他貼文已逐篇驗證。預設模式只接受根目錄相對路徑、正整數 ID 與精確的 `thumbnail.jpg` 檔名；不會核對路徑 ID 與其他 API 欄位是否相同。其他主機或不符合此模式的相對路徑，仍須自行查證，並可選擇加 `--extractor-args 'candfanspost:thumbnail_origin=https://YOUR_VERIFIED_THUMBNAIL_HOST'`。此 override 只接受 HTTPS origin，不接受 path、query、fragment 或帳密；不符合已知模式且未指定 origin 時省略封面。API 已提供的絕對 HTTPS URL 優先使用，明確指定的 origin 則覆寫安全相對路徑的預設來源；extractor 本身不會請求圖片。
+
+只查解析後 URL 時，使用前述 metadata-only 指令即可；會輸出 thumbnail URL，但不儲存影片或內嵌封面。更多手動指令見 [Windows_commands.ps1](examples/Windows_commands.ps1)，整份範例皆為註解。
 
 ## 開發與測試
 
@@ -103,7 +103,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe scripts/build.py --output dist/yt-dlp-candfans.zip
 ```
 
-52 個離線測試涵蓋 URL matching、九筆 timeline 與空頁、lazy pagination、權限、API 錯誤、多附件、Cookie scope、metadata、時區與 thumbnail。公開 fixtures 為**經去識別與內容替換的衍生資料**：保留觀察到的 JSON 結構、貼文 ID、時間／duration 與 false 旗標；創作者、文字與媒體網址已換成中性範例。它們不是原始回應的逐位元組副本，也不是 live API 驗證結果，詳見 [fixture 說明](tests/fixtures/README.md)。
+55 個離線測試涵蓋 URL matching、九筆 timeline 與空頁、lazy pagination、權限、API 錯誤、多附件、Cookie scope、metadata、時區與 thumbnail。公開 fixtures 為**經去識別與內容替換的衍生資料**：保留觀察到的 JSON 結構、貼文 ID、時間／duration 與 false 旗標；創作者、文字與媒體網址已換成中性範例。它們不是原始回應的逐位元組副本，也不是 live API 驗證結果，詳見 [fixture 說明](tests/fixtures/README.md)。
 
 使用既有的官方 Windows EXE 做離線 ZIP discovery 與 CLI mock：
 
@@ -120,7 +120,7 @@ python scripts/verify_thumbnail.py --exe 'C:\Tools\yt-dlp.exe' `
 
 ## CI 與 Release
 
-[GitHub Actions CI](https://github.com/CornerSyrup/yt-dlp-candfans/actions/workflows/ci.yml) 在 Ubuntu／Windows、Python 3.12／3.13 執行 52 項離線測試與打包驗證；另以官方 Windows EXE 驗證 ZIP 載入、metadata、分頁及 synthetic HLS CLI，不需要 CandFans Cookie。實際封面內嵌可另用上方的本機整合腳本驗證。
+[GitHub Actions CI](https://github.com/CornerSyrup/yt-dlp-candfans/actions/workflows/ci.yml) 在 Ubuntu／Windows、Python 3.12／3.13 執行 55 項離線測試與打包驗證；另以官方 Windows EXE 驗證 ZIP 載入、metadata、分頁及 synthetic HLS CLI，不需要 CandFans Cookie。實際封面內嵌可另用上方的本機整合腳本驗證。
 
 維護者在 CI 通過後建立 `v*` tag（首版 `v0.1.0`）：Release workflow 會再次驗證並發佈 `yt-dlp-candfans.zip` 與 `SHA256SUMS.txt`。從 tag 對應的 commit 建置，不把 secrets、原始私人 fixtures 或生成媒體加入 release：
 
@@ -132,13 +132,13 @@ git push origin v0.1.0
 
 ## 已知限制與回報問題
 
-user-by-code 真實結構、thumbnail 主機、Laravel Sanctum Cookie／CSRF 細節、`is_downloadable` 語意及 `post_date` 真實時區均尚未確認；無時區日期暫按 JST UTC+09:00 換算，`upload_date` 為 UTC 日期。詳細界線見 [KNOWN_UNVERIFIED.md](docs/KNOWN_UNVERIFIED.md)。
+user-by-code 真實結構、其他 thumbnail 來源、Laravel Sanctum Cookie／CSRF 細節、`is_downloadable` 語意及 `post_date` 真實時區均尚未確認；無時區日期暫按 JST UTC+09:00 換算，`upload_date` 為 UTC 日期。thumbnail 預設來源依上述使用者確認的單篇範例建立，其他貼文未逐篇 live 驗證。詳細界線見 [KNOWN_UNVERIFIED.md](docs/KNOWN_UNVERIFIED.md)。
 
 `ERROR_UNAUTHENTICATED` 或 HTTP 401 只代表該次請求未通過驗證。空附件、禁止旗標或未知 schema 不會轉用 sample／preview、重建媒體 URL 或繞過存取限制。Plugin 不例行取得帳號資料、不處理 DRM 繞過。回報問題時提供版本、已移除秘密的最小 JSON 與重現步驟；不要附真實 Cookie、簽名媒體 URL、付費內容或 backend trace。
 
 ## 作者、協作與授權
 
-專案作者與維護者：**CornerSyrup（Klein）**。OpenAI Codex 協助實作與整理 extractors、保守權限檢查、lazy pagination、手動 Cookie 支援、metadata／thumbnail 選項、52 個離線測試、synthetic 封面內嵌與官方 Windows EXE 驗證、CI/CD、打包及文件。需求、授權判斷與後續維護決策由作者負責。
+專案作者與維護者：**CornerSyrup（Klein）**。OpenAI Codex 協助實作與整理 extractors、保守權限檢查、lazy pagination、手動 Cookie 支援、metadata／thumbnail 選項、55 個離線測試、synthetic 封面內嵌與官方 Windows EXE 驗證、CI/CD、打包及文件。需求、授權判斷與後續維護決策由作者負責。
 
 本專案採 [MIT License](LICENSE)，保留既有 `Copyright (c) 2026 Klein`。貢獻前請先提出最小重現或測試案例；修改 API contract 時附去識別證據，並保留離線測試及下載權限邊界。
 

@@ -12,6 +12,10 @@ def build(destination: Path | None = None) -> Path:
     files = sorted((root / 'yt_dlp_plugins' / 'extractor').glob('*.py'))
     if not files:
         raise SystemExit('No extractor source found')
+    license_file = root / 'LICENSE'
+    if not license_file.is_file():
+        raise SystemExit('LICENSE is required in the distributable ZIP')
+    files = [license_file, *files]
     destination.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(destination, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for file in files:

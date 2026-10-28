@@ -148,8 +148,9 @@ class PostTests(OfflineCase):
         self.assertEqual(result['uploader_url'], PROFILE_URL)
         self.assertEqual(result['webpage_url'], POST_URL)
         self.assertEqual(result['formats'], [])
-        self.assertFalse(result.get('thumbnail'))
+        self.assertEqual(result['thumbnail'], 'https://video.candfans.jp/user/100001/post/974904/thumbnail.jpg')
         self.assertNotIn('media.example.invalid', json.dumps(result))
+        self.assertNotIn('.m3u8', json.dumps(result))
         ie._extract_m3u8_formats.assert_not_called()
 
     def test_synthetic_explicit_permission_extracts_main_hls(self):
@@ -400,12 +401,45 @@ class ThumbnailTests(OfflineCase):
             config['metadata_only'] = ['true']
         return {'candfanspost': config}
 
-    def test_sanitised_relative_thumbnail_unresolved_without_user_origin(self):
+    def test_sanitised_known_thumbnail_uses_user_verified_default_without_fetch(self):
         ie, result = self.post(fixture('post_974904_sanitised.json'), args={
             'candfanspost': {'metadata_only': ['true']},
         })
-        self.assertNotIn('thumbnail', result)
+        self.assertEqual(result['thumbnail'], 'https://video.candfans.jp' + self.ORIGINAL_PATH)
+        self.assertEqual(result['formats'], [])
         ie._extract_m3u8_formats.assert_not_called()
+        self.assertEqual(ie._download_json.call_count, 1)
+
+    def test_default_thumbnail_origin_only_matches_verified_path_pattern(self):
+        for path in ('/thumbnail.jpg', '/user/100001/thumbnail.jpg',
+                     '/user/100001/post/974904/cover.jpg', '/user/100001/post/974904/thumbnail.png',
+                     '/user/0/post/974904/thumbnail.jpg', '/user/100001/post/0/thumbnail.jpg',
+                     '/user/name/post/974904/thumbnail.jpg', 'user/100001/post/974904/thumbnail.jpg',
+                     '//unknown.example.invalid/user/100001/post/974904/thumbnail.jpg',
+                     '/user/100001/post/974904/../thumbnail.jpg',
+                     '/user/100001/post/974904/thumbnail.jpg#fragment'):
+            with self.subTest(path=path):
+                ie, result = self.post(synthetic_post(thumbnail_file=path), args={
+                    'candfanspost': {'metadata_only': ['true']},
+                })
+                self.assertNotIn('thumbnail', result)
+                ie._extract_m3u8_formats.assert_not_called()
+
+    def test_default_thumbnail_origin_retains_api_query_without_altering_origin(self):
+        path = self.ORIGINAL_PATH + '?version=synthetic'
+        _, result = self.post(synthetic_post(thumbnail_file=path), args={
+            'candfanspost': {'metadata_only': ['true']},
+        })
+        self.assertEqual(result['thumbnail'], 'https://video.candfans.jp' + path)
+
+    def test_profile_known_thumbnails_use_default_origin_without_image_requests(self):
+        page = fixture('timeline_page_sanitised.json')
+        ie, result = self.profile([page, fixture('timeline_empty.json')])
+        entries = list(result['entries'])
+        self.assertEqual(len(entries), 9)
+        for post, entry in zip(page['data'], entries):
+            self.assertEqual(entry['thumbnail'], 'https://video.candfans.jp' + post['thumbnail_file'])
+        self.assertEqual(ie._download_json.call_count, 3)  # Lookup plus two API pages only.
 
     def test_explicit_https_origin_resolves_sanitised_thumbnail_in_metadata_only(self):
         for origin in (self.ORIGIN, self.ORIGIN + '/'):
@@ -437,13 +471,15 @@ class ThumbnailTests(OfflineCase):
             self.assertEqual(entry['ie_key'], 'CandFansPost')
 
     def test_multi_attachment_entries_share_resolved_thumbnail(self):
-        _, result = self.post(synthetic_post(attachments=[
-            {'default': 'https://media.example.invalid/a.m3u8'},
-            {'default': 'https://media.example.invalid/b.m3u8'},
-        ]), args=self.thumbnail_args())
-        entries = list(result['entries'])
-        self.assertEqual(len(entries), 2)
-        self.assertTrue(all(item['thumbnail'] == self.ORIGIN + self.ORIGINAL_PATH for item in entries))
+        for args, origin in ((None, 'https://video.candfans.jp'), (self.thumbnail_args(), self.ORIGIN)):
+            with self.subTest(origin=origin):
+                _, result = self.post(synthetic_post(attachments=[
+                    {'default': 'https://media.example.invalid/a.m3u8'},
+                    {'default': 'https://media.example.invalid/b.m3u8'},
+                ]), args=args)
+                entries = list(result['entries'])
+                self.assertEqual(len(entries), 2)
+                self.assertTrue(all(item['thumbnail'] == origin + self.ORIGINAL_PATH for item in entries))
 
     def test_invalid_thumbnail_origins_raise_expected_configuration_error(self):
         invalid = (

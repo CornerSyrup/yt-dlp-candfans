@@ -80,8 +80,9 @@ class _CandFansBaseIE(InfoExtractor):
         return response
 
     def _thumbnail_url(self, value):
-        # No thumbnail host was supplied by the evidence. Only an explicit,
-        # user-verified origin can resolve a relative path; never infer a CDN.
+        # The user verified video.candfans.jp for the 974904 thumbnail sample.
+        # Apply it only to that observed path shape, not arbitrary relative files.
+        # This is user-supplied evidence, not an extractor live-verification result.
         origins = self._configuration_arg('thumbnail_origin', ie_key='CandFansPost', casesense=True)
         origin = None
         if origins:
@@ -99,7 +100,7 @@ class _CandFansBaseIE(InfoExtractor):
         absolute = _https_url(value)
         if absolute:
             return absolute
-        if not origin or not isinstance(value, str) or not value or value.startswith('//') or any(
+        if not isinstance(value, str) or not value or value.startswith('//') or any(
                 c.isspace() or ord(c) < 32 or ord(c) == 127 for c in value):
             return None
         try:
@@ -111,6 +112,10 @@ class _CandFansBaseIE(InfoExtractor):
         path = parts.path
         if not path or path.startswith('//'):
             return None
+        if not origin:
+            if not re.fullmatch(r'/user/[1-9]\d*/post/[1-9]\d*/thumbnail\.jpg', path):
+                return None
+            origin = 'https://video.candfans.jp'
         # Reject traversal even when encoded, including nested encodings. The
         # original path is retained for the request; this decoding is validation.
         decoded = path
