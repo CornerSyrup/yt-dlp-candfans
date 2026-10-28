@@ -48,6 +48,8 @@ Release 同時提供 `SHA256SUMS.txt`；PowerShell 可用 `Get-FileHash .\yt-dlp
 
 `metadata_only` 不請求 HLS manifest，也不輸出附件媒體 URL，回傳 `formats=[]`，因此需配合 `--ignore-no-formats-error`。一般的 `--skip-download` 仍可能解析 manifest。此例的 `974904` 有使用者提供的回應節錄；`1322820` 只有 URL，沒有其 API 回應或成功擷取證據。
 
+影片來源只讀 API `attachments[].default`／`low` 中的主影片 M3U8。使用者已確認 `974904` 的影片與圖片皆使用 `https://video.candfans.jp`，且影片相對路徑對應 `/user/<user_id>/post/<post_id>/<filename>.m3u8`。因此，符合已知模式的附件相對路徑可接到此 origin；要求根目錄相對路徑、正整數 ID、單一非空檔名及小寫 `.m3u8`，保留 query。完整 HTTPS 附件 URL 照原值處理。這是使用者確認的單篇證據，其他貼文未逐篇 live 驗證，也不代表下載許可。空附件不會改讀 `contents_path1`、`sample_file` 或 preview，前述下載旗標檢查保持不變。
+
 ## 個人頁與批次下載
 
 請把 `YOUR_CREATOR_CODE` 換成實際創作者代碼：
@@ -103,7 +105,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe scripts/build.py --output dist/yt-dlp-candfans.zip
 ```
 
-55 個離線測試涵蓋 URL matching、九筆 timeline 與空頁、lazy pagination、權限、API 錯誤、多附件、Cookie scope、metadata、時區與 thumbnail。公開 fixtures 為**經去識別與內容替換的衍生資料**：保留觀察到的 JSON 結構、貼文 ID、時間／duration 與 false 旗標；創作者、文字與媒體網址已換成中性範例。它們不是原始回應的逐位元組副本，也不是 live API 驗證結果，詳見 [fixture 說明](tests/fixtures/README.md)。
+60 個離線測試涵蓋 URL matching、九筆 timeline 與空頁、lazy pagination、權限、API 錯誤、多附件、Cookie scope、metadata、時區與 thumbnail。公開 fixtures 為**經去識別與內容替換的衍生資料**：保留觀察到的 JSON 結構、貼文 ID、時間／duration 與 false 旗標；創作者、文字與媒體網址已換成中性範例。它們不是原始回應的逐位元組副本，也不是 live API 驗證結果，詳見 [fixture 說明](tests/fixtures/README.md)。
 
 使用既有的官方 Windows EXE 做離線 ZIP discovery 與 CLI mock：
 
@@ -120,7 +122,7 @@ python scripts/verify_thumbnail.py --exe 'C:\Tools\yt-dlp.exe' `
 
 ## CI 與 Release
 
-[GitHub Actions CI](https://github.com/CornerSyrup/yt-dlp-candfans/actions/workflows/ci.yml) 在 Ubuntu／Windows、Python 3.12／3.13 執行 55 項離線測試與打包驗證；另以官方 Windows EXE 驗證 ZIP 載入、metadata、分頁及 synthetic HLS CLI，不需要 CandFans Cookie。實際封面內嵌可另用上方的本機整合腳本驗證。
+[GitHub Actions CI](https://github.com/CornerSyrup/yt-dlp-candfans/actions/workflows/ci.yml) 在 Ubuntu／Windows、Python 3.12／3.13 執行 60 項離線測試與打包驗證；另以官方 Windows EXE 驗證 ZIP 載入、metadata、分頁及 synthetic HLS CLI，不需要 CandFans Cookie。實際封面內嵌可另用上方的本機整合腳本驗證。
 
 維護者在 CI 通過後建立 `v*` tag（首版 `v0.1.0`）：Release workflow 會再次驗證並發佈 `yt-dlp-candfans.zip` 與 `SHA256SUMS.txt`。從 tag 對應的 commit 建置，不把 secrets、原始私人 fixtures 或生成媒體加入 release：
 
@@ -132,13 +134,13 @@ git push origin v0.1.0
 
 ## 已知限制與回報問題
 
-user-by-code 真實結構、其他 thumbnail 來源、Laravel Sanctum Cookie／CSRF 細節、`is_downloadable` 語意及 `post_date` 真實時區均尚未確認；無時區日期暫按 JST UTC+09:00 換算，`upload_date` 為 UTC 日期。thumbnail 預設來源依上述使用者確認的單篇範例建立，其他貼文未逐篇 live 驗證。詳細界線見 [KNOWN_UNVERIFIED.md](docs/KNOWN_UNVERIFIED.md)。
+user-by-code 真實結構、其他圖片／影片來源、Laravel Sanctum Cookie／CSRF 細節、`is_downloadable` 語意及 `post_date` 真實時區均尚未確認；無時區日期暫按 JST UTC+09:00 換算，`upload_date` 為 UTC 日期。已知模式的圖片與附件相對路徑來源依上述使用者確認的單篇範例建立，其他貼文未逐篇 live 驗證。詳細界線見 [KNOWN_UNVERIFIED.md](docs/KNOWN_UNVERIFIED.md)。
 
-`ERROR_UNAUTHENTICATED` 或 HTTP 401 只代表該次請求未通過驗證。空附件、禁止旗標或未知 schema 不會轉用 sample／preview、重建媒體 URL 或繞過存取限制。Plugin 不例行取得帳號資料、不處理 DRM 繞過。回報問題時提供版本、已移除秘密的最小 JSON 與重現步驟；不要附真實 Cookie、簽名媒體 URL、付費內容或 backend trace。
+`ERROR_UNAUTHENTICATED` 或 HTTP 401 只代表該次請求未通過驗證。空附件、禁止旗標或未知 schema 不會轉用 `contents_path1`、sample／preview 或繞過存取限制。Plugin 不例行取得帳號資料、不處理 DRM 繞過。回報問題時提供版本、已移除秘密的最小 JSON 與重現步驟；不要附真實 Cookie、簽名媒體 URL、付費內容或 backend trace。
 
 ## 作者、協作與授權
 
-專案作者與維護者：**CornerSyrup（Klein）**。OpenAI Codex 協助實作與整理 extractors、保守權限檢查、lazy pagination、手動 Cookie 支援、metadata／thumbnail 選項、55 個離線測試、synthetic 封面內嵌與官方 Windows EXE 驗證、CI/CD、打包及文件。需求、授權判斷與後續維護決策由作者負責。
+專案作者與維護者：**CornerSyrup（Klein）**。OpenAI Codex 協助實作與整理 extractors、保守權限檢查、lazy pagination、手動 Cookie 支援、metadata／thumbnail 選項、60 個離線測試、synthetic 封面內嵌與官方 Windows EXE 驗證、CI/CD、打包及文件。需求、授權判斷與後續維護決策由作者負責。
 
 本專案採 [MIT License](LICENSE)，保留既有 `Copyright (c) 2026 Klein`。貢獻前請先提出最小重現或測試案例；修改 API contract 時附去識別證據，並保留離線測試及下載權限邊界。
 

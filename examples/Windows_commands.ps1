@@ -41,6 +41,9 @@
 #     --list-formats 'https://candfans.jp/posts/comment/show/974904'
 
 # 6. 單篇下載：僅有合法下載許可且 API is_downloadable=true、can_browsing=1/true 時可用。
+#    僅處理 attachments.default/low；相符 /user/<id>/post/<id>/<filename>.m3u8 使用已知 origin。
+#    該 origin https://video.candfans.jp 由使用者確認 974904 範例，其他貼文未逐篇 live 驗證。
+#    空附件不會改讀 contents_path1/sample/preview，下載旗標規則不變。
 #    -N 8 為 concurrent fragments；-c 續傳；MP4 remux 需要 FFmpeg。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     -N 8 -c --download-archive '.\downloaded.txt' `

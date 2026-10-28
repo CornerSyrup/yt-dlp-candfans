@@ -158,6 +158,70 @@ class PostTests(OfflineCase):
         self.assertTrue(result['formats'])
         self.assertEqual(ie._extract_m3u8_formats.call_args.args[0], 'https://media.example.invalid/a.m3u8')
 
+    def test_known_relative_attachment_default_and_low_use_verified_hls_origin(self):
+        # Synthetic permission=True and filename, not a live download assertion.
+        path = '/user/100001/post/974904/synthetic-main.m3u8?signature=synthetic'
+        for field in ('default', 'low'):
+            with self.subTest(field=field):
+                ie, result = self.post(synthetic_post(attachments=[{field: path}]))
+                self.assertTrue(result['formats'])
+                self.assertEqual(ie._extract_m3u8_formats.call_count, 1)
+                self.assertEqual(ie._extract_m3u8_formats.call_args.args[0], 'https://video.candfans.jp' + path)
+                self.assertEqual(ie._extract_m3u8_formats.call_args.kwargs['m3u8_id'], field)
+
+    def test_false_permission_blocks_known_relative_hls_before_manifest(self):
+        ie = self.ie()
+        ie._download_json = Mock(return_value=synthetic_post(
+            is_downloadable=False,
+            attachments=[{'default': '/user/100001/post/974904/synthetic-main.m3u8'}],
+        ))
+        ie._extract_m3u8_formats = Mock()
+        with self.assertRaises(ExtractorError) as err:
+            ie._real_extract(POST_URL)
+        self.assertTrue(err.exception.expected)
+        ie._extract_m3u8_formats.assert_not_called()
+
+    def test_metadata_only_known_relative_hls_never_fetches_or_exposes_manifest(self):
+        ie, result = self.post(synthetic_post(attachments=[{
+            'default': '/user/100001/post/974904/synthetic-main.m3u8',
+        }]), args={'candfanspost': {'metadata_only': ['true']}})
+        self.assertEqual(result['formats'], [])
+        self.assertNotIn('.m3u8', json.dumps(result))
+        ie._extract_m3u8_formats.assert_not_called()
+
+    def test_empty_attachments_never_fall_back_to_known_relative_contents_path(self):
+        ie = self.ie()
+        ie._download_json = Mock(return_value=synthetic_post(
+            attachments=[], contents_path1='/user/100001/post/974904/synthetic-main.m3u8',
+        ))
+        ie._extract_m3u8_formats = Mock()
+        with self.assertRaises(ExtractorError):
+            ie._real_extract(POST_URL)
+        ie._extract_m3u8_formats.assert_not_called()
+
+    def test_unknown_or_unsafe_relative_hls_paths_are_never_requested(self):
+        for path in ('/relative/main.m3u8', 'user/100001/post/974904/main.m3u8',
+                     '//unverified.example.invalid/user/100001/post/974904/main.m3u8',
+                     '///unverified.example.invalid/user/100001/post/974904/main.m3u8',
+                     '/user/100001/post/974904/../main.m3u8',
+                     '/user/100001/post/974904/%2e%2e%2fmain.m3u8',
+                     '/user/100001/post/974904/%252e%252e%252fmain.m3u8',
+                     '/user/100001/post/974904/folder%2fmain.m3u8',
+                     '/user/100001/post/974904/folder%5cmain.m3u8',
+                     '/user/100001/post/974904/folder\\main.m3u8',
+                     '/user/100001/post/974904/main\n.m3u8',
+                     '/user/100001/post/974904/main.m3u8#fragment',
+                     '/user/0/post/974904/main.m3u8', '/user/100001/post/0/main.m3u8',
+                     '/user/100001/post/974904/sample.m3u8',
+                     '/user/100001/post/974904/preview.m3u8'):
+            with self.subTest(path=path):
+                ie = self.ie()
+                ie._download_json = Mock(return_value=synthetic_post(attachments=[{'default': path}]))
+                ie._extract_m3u8_formats = Mock()
+                with self.assertRaises(ExtractorError):
+                    ie._real_extract(POST_URL)
+                ie._extract_m3u8_formats.assert_not_called()
+
     def test_unverified_permission_values_are_not_truthy_bypass(self):
         for value in (False, None, 0, 1, 'true', 'false', '1'):
             with self.subTest(value=value):

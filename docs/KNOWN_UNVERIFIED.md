@@ -17,9 +17,9 @@
 | duration／多附件 | `movie_time`、`attachment_length` 與部分 `post_attachments[].length` | 依可唯一識別的路徑對應，不依陣列位置猜測；完整穩定附件 contract 未建立。媒體 origin/path 改變可能影響 archive ID。 |
 | Laravel Sanctum | 使用者登入失敗 trace 曾提到該 middleware | 不證明特定 Cookie、CSRF 或 header 需求。只使用 yt-dlp cookie jar，不猜名稱、自動登入或例行取得帳號資料。 |
 | 未登入回應 | `ERROR_UNAUTHENTICATED` 節錄與空附件觀察 | 真實 HTTP status 未提供；401/403 等以 synthetic 測試。不能推論瀏覽器全域登入狀態。 |
-| HLS | 觀察資料含完整 URL，但下載旗標為 false | 公開網址已替換為 `.invalid`。manifest parsing 與許可分支完全離線；真實 CDN、Cookie、referer 與有效期未確認。 |
+| HLS | 使用者確認 `974904` 的主影片位於 `https://video.candfans.jp`，對應 `/user/<user_id>/post/<post_id>/<filename>.m3u8`；同篇圖片亦使用此 origin | 只解析 API `attachments[].default`／`low` 的完整 HTTPS URL 或符合已知模式的根目錄相對路徑，不從 `contents_path1`／sample／preview 補來源。下載旗標規則不變。這是使用者確認的單篇證據，不是本工具 live 驗證；其他主機、Cookie、referer 與有效期未確認。公開媒體網址已替換為 `.invalid`，manifest parsing 與許可分支採離線 mock。 |
 | 封面內嵌／MP4 | 原生 yt-dlp postprocessor 與 FFmpeg 工具鏈 | 用本地 synthetic HLS／JPEG 實際內嵌並檢查 attached_pic 與圖片 SHA256；不代表已成功下載 CandFans 封面或媒體。metadata-only 不儲存影片或內嵌。 |
 | Windows ZIP loader | 官方 EXE 搭配本機 JSON 檢查正式 ZIP 的兩個 IE，再做 fixture CLI mock | 部分版本的 `--list-extractors` 先於 plugin 載入，listing 不含 plugin 不代表載入失敗。測試工具不包含在正式 ZIP。 |
-| live 驗收 | 本工具沒有成功的真實 Cookie、已登入 API 或實際下載驗證；使用者另確認上述單篇 thumbnail URL | 在授權環境驗證 lookup、跨頁、其他單篇／主機、旗標、時區與媒體；使用者提供的 URL 證據與本工具 mock 結果分開記錄。CI 不接觸 CandFans 或私人工作階段。 |
+| live 驗收 | 本工具沒有成功的真實 Cookie、已登入 API 或實際下載驗證；使用者另確認上述單篇圖片與主影片 URL | 在授權環境驗證 lookup、跨頁、其他單篇／主機、旗標、時區與媒體；使用者提供的 URL 證據與本工具 mock 結果分開記錄。CI 不接觸 CandFans 或私人工作階段。 |
 
 公開回報只提交最小、去識別的 JSON 與版本資訊。新增 API 證據時同步更新 fixture 與測試，不能把 synthetic 許可或網址當成已驗證 contract；勿提交真實 Cookie、帳號資料、簽名 URL、付費內容或 backend trace。

@@ -44,6 +44,38 @@ def _https_url(value):
     return urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, ''))
 
 
+def _hls_url(value):
+    absolute = _https_url(value)
+    if absolute:
+        return absolute
+    if not isinstance(value, str) or not value or value.startswith('//') or any(
+            c.isspace() or ord(c) < 32 or ord(c) == 127 for c in value):
+        return None
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return None
+    if parts.scheme or parts.netloc or '#' in value or '\\' in value:
+        return None
+    known_path = r'/user/[1-9]\d*/post/[1-9]\d*/[^/]+\.m3u8'
+    decoded = parts.path
+    for _ in range(8):
+        if not re.fullmatch(known_path, decoded) or '\\' in decoded or any(
+                segment in ('.', '..') for segment in decoded.split('/')) or any(
+                ord(c) < 32 or ord(c) == 127 for c in decoded) or re.search(
+                r'(?:^|/)(?:sample|preview)(?:[._/-]|$)', decoded, re.IGNORECASE):
+            return None
+        next_decoded = unquote(decoded)
+        if next_decoded == decoded:
+            break
+        decoded = next_decoded
+    else:
+        return None
+    # The user verified the 974904 main manifest at this origin. Resolve only
+    # actual attachment values in the observed path shape, never other fields.
+    return urlunsplit(('https', 'video.candfans.jp', parts.path, parts.query, ''))
+
+
 class _CandFansBaseIE(InfoExtractor):
     _ORIGIN = 'https://candfans.jp'
 
@@ -200,7 +232,7 @@ class CandFansPostIE(_CandFansBaseIE):
                 continue
             variants = []
             for label in ('default', 'low'):
-                value = _https_url(item.get(label))
+                value = _hls_url(item.get(label))
                 if not value:
                     continue
                 path = urlsplit(value).path
