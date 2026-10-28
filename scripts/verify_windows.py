@@ -87,13 +87,19 @@ def run(executable: Path, archive: Path, destination: Path):
             (payload_root / name).write_bytes((source / 'tests' / 'fixtures' / name).read_bytes())
         env = os.environ.copy()
         env.pop('YTDLP_NO_PLUGINS', None)
-        base = [str(executable), '--ignore-config', '--no-plugin-dirs', '--plugin-dirs', str(plugins)]
+        env['PYTHONIOENCODING'] = 'utf-8'
+        env['PYTHONUTF8'] = '1'
+        base = [str(executable), '--ignore-config', '--encoding', 'utf-8',
+                '--no-plugin-dirs', '--plugin-dirs', str(plugins)]
 
         def invoke(name, options, mode='sanitised', expected=0):
             env['CANDFANS_TEST_ROOT'] = str(payload_root)
             env['CANDFANS_TEST_MODE'] = mode
-            completed = subprocess.run(base + options, capture_output=True, text=True,
-                                       encoding='utf-8', env=env, timeout=60)
+            completed = subprocess.run(base + options, capture_output=True, env=env, timeout=60)
+            # Early CLI branches such as --list-extractors may still use the
+            # runner's code page before the --encoding option is applied.
+            completed.stdout = completed.stdout.decode('utf-8', errors='replace')
+            completed.stderr = completed.stderr.decode('utf-8', errors='replace')
             (destination / f'{name}.stdout.txt').write_text(completed.stdout, encoding='utf-8')
             (destination / f'{name}.stderr.txt').write_text(completed.stderr, encoding='utf-8')
             assert completed.returncode == expected, f'{name}: exit {completed.returncode}; inspect stderr'
@@ -126,6 +132,8 @@ def run(executable: Path, archive: Path, destination: Path):
         metadata = invoke('metadata-only-sanitised', common + [
             '--ignore-no-formats-error', '--extractor-args', 'candfanspost:metadata_only=true', post_url])
         parsed = json.loads(metadata.stdout)
+        expected_post = json.loads((payload_root / 'post_974904_sanitised.json').read_text(encoding='utf-8'))['data']['post']
+        assert parsed['title'] == expected_post['title'], 'Unicode metadata was not preserved'
         assert parsed['id'] == '974904' and parsed['duration'] == 1947
         assert parsed['timestamp'] == 1749654958 and parsed['upload_date'] == '20250611'
         assert not parsed.get('formats') and not parsed.get('thumbnail')
