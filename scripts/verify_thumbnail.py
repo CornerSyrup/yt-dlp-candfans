@@ -36,7 +36,7 @@ def _fixture_open(self, request):
             'post_id': 974904, 'user_id': 100001,
             'user_code': 'synthetic_creator', 'username': 'Synthetic creator',
             'title': 'Offline thumbnail embedding test', 'contents_text': 'Generated colour clip only.',
-            'can_browsing': 1, 'is_downloadable': True,
+            'can_browsing': 1, 'is_downloadable': False,
             'thumbnail_file': '/user/100001/post/974904/thumbnail.jpg',
             'attachments': [{'default': 'https://media.example.invalid/master.m3u8'}],
         }}}).encode()

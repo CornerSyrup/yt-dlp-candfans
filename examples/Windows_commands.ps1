@@ -1,6 +1,6 @@
 # yt-dlp-candfans 使用範例目錄。所有指令皆為註解；執行或 dot-source 此檔不會連線或下載。
 # 請挑選所需區塊，移除開頭 # 後在 yt-dlp.exe 所在目錄手動執行。
-# 不會自動登入；cookies.txt 必須由你自行準備。不要分享真實 Cookie 或 JSON 日誌。
+# 不會自動登入；API 需要登入時，cookies.txt 由你自行準備；不需要 Cookie 時省略 --cookies。不要分享真實 Cookie 或 JSON 日誌。
 # yt-dlp-<site/function> 是常見命名慣例，非官方強制 ZIP 名稱；內部 namespace 與 IE 類名不變。
 # 若已安裝舊名 candfans.zip，可自行選擇在同一資料夾更名為 yt-dlp-candfans.zip，勿安裝第二份。
 
@@ -35,15 +35,15 @@
 #     --extractor-args 'candfansprofile:user_id=YOUR_VERIFIED_USER_ID' `
 #     'https://candfans.jp/YOUR_CREATOR_CODE'
 
-# 5. 一般 skip-download 仍可能請求 manifest；只有 API 明確允許時才列格式。
-#    觀察資料與公開衍生 fixtures 的 is_downloadable=false，執行此例應被阻擋。
+# 5. 一般 skip-download 仍可能請求 manifest；is_downloadable=false 不會阻擋解析。
+#    依 API 附件與實際 HTTP/HLS 結果列格式，不從此欄位推測失敗原因。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     --list-formats 'https://candfans.jp/posts/comment/show/974904'
 
-# 6. 單篇下載：僅有合法下載許可且 API is_downloadable=true、can_browsing=1/true 時可用。
+# 6. 單篇下載：用於你有權下載的媒體，目前仍檢查 can_browsing=1/true。
 #    僅處理 attachments.default/low；相符 /user/<id>/post/<id>/<filename>.m3u8 使用已知 origin。
-#    該 origin https://video.candfans.jp 由使用者確認 974904 範例，其他貼文未逐篇 live 驗證。
-#    空附件不會改讀 contents_path1/sample/preview，下載旗標規則不變。
+#    該 origin https://video.candfans.jp 由使用者確認 974904 範例，本機另以 API fixture 回放完成單篇與九篇個人頁項目 CDN 下載。
+#    空附件不會改讀 contents_path1/sample/preview；不依 is_downloadable 阻擋。
 #    -N 8 為 concurrent fragments；-c 續傳；MP4 remux 需要 FFmpeg。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     -N 8 -c --download-archive '.\downloaded.txt' `
@@ -51,7 +51,7 @@
 #     -o '.\downloads\%(uploader_id)s\%(id)s.%(ext)s' `
 #     'https://candfans.jp/posts/comment/show/974904'
 
-# 7. Profile 批次：每篇仍檢查許可；--ignore-errors 略過不可下載項，應閱讀略過原因。
+# 7. Profile 批次：每篇仍檢查 can_browsing 與實際附件；--ignore-errors 略過不可下載項，應閱讀略過原因。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     --extractor-args 'candfansprofile:user_id=YOUR_VERIFIED_USER_ID' `
 #     -N 8 -c --download-archive '.\downloaded.txt' --ignore-errors `
@@ -63,9 +63,9 @@
 #    使用者確認 974904 的 /user/1422016/post/974904/thumbnail.jpg 位於 https://video.candfans.jp。
 #    相符 /user/<user_id>/post/<post_id>/thumbnail.jpg 預設使用該 origin，不需指定參數。
 #    模式要求正整數 ID 與精確檔名，不核對其他 API 欄位的 ID。
-#    此為使用者確認的單篇證據，非本工具 live 測試；其他貼文未逐篇驗證。
+#    本機另以 API fixture 回放完成單篇與九篇個人頁項目 CDN 下載，live API 未驗證。
 #    yt-dlp 原生 --embed-thumbnail 下載並內嵌，需要現有 FFmpeg；plugin 不會強制啟用。
-#    觀察資料與公開衍生 fixtures 的 is_downloadable=false，仍會阻擋影片下載。
+#    is_downloadable=false 不會阻擋影片下載；伺服器錯誤依實際結果回報。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     -N 8 -c --download-archive '.\downloaded.txt' `
 #     --embed-thumbnail --remux-video mp4 `

@@ -3,7 +3,7 @@
 Public fixtures are sanitised derivatives of supplied evidence, preserving shapes,
 post IDs, timestamps, durations and permission flags, with neutral text and URLs.
 Mutated dicts and .invalid manifests below are synthetic, including
-is_downloadable=True and user lookup bodies. They are not live API verification.
+user lookup bodies. is_downloadable remains informational. They are not live API verification.
 """
 from __future__ import annotations
 
@@ -41,7 +41,6 @@ def fixture(name):
 def synthetic_post(**changes):
     body = fixture('post_974904_sanitised.json')
     body['data']['post'].update({
-        'is_downloadable': True,
         'attachments': [{'default': 'https://media.example.invalid/a.m3u8', 'low': None}],
         'post_attachments': [],
     })
@@ -123,15 +122,12 @@ class URLTests(OfflineCase):
 
 
 class PostTests(OfflineCase):
-    def test_sanitised_false_permission_blocks_before_hls(self):
-        ie = self.ie()
-        ie._download_json = Mock(return_value=fixture('post_974904_sanitised.json'))
-        ie._extract_m3u8_formats = Mock()
-        with self.assertRaises(ExtractorError) as err:
-            ie._real_extract(POST_URL)
-        self.assertTrue(err.exception.expected)
-        self.assertIn('download', str(err.exception).lower())
-        ie._extract_m3u8_formats.assert_not_called()
+    def test_sanitised_false_downloadable_flag_allows_returned_hls(self):
+        body = fixture('post_974904_sanitised.json')
+        self.assertIs(body['data']['post']['is_downloadable'], False)
+        ie, result = self.post(body)
+        self.assertTrue(result['formats'])
+        ie._extract_m3u8_formats.assert_called_once()
 
     def test_sanitised_metadata_only_preserves_unicode_and_jst_assumption(self):
         body = fixture('post_974904_sanitised.json')
@@ -153,13 +149,13 @@ class PostTests(OfflineCase):
         self.assertNotIn('.m3u8', json.dumps(result))
         ie._extract_m3u8_formats.assert_not_called()
 
-    def test_synthetic_explicit_permission_extracts_main_hls(self):
+    def test_synthetic_attachment_extracts_main_hls(self):
         ie, result = self.post(synthetic_post())
         self.assertTrue(result['formats'])
         self.assertEqual(ie._extract_m3u8_formats.call_args.args[0], 'https://media.example.invalid/a.m3u8')
 
     def test_known_relative_attachment_default_and_low_use_verified_hls_origin(self):
-        # Synthetic permission=True and filename, not a live download assertion.
+        # Synthetic filename, not a live download assertion.
         path = '/user/100001/post/974904/synthetic-main.m3u8?signature=synthetic'
         for field in ('default', 'low'):
             with self.subTest(field=field):
@@ -169,17 +165,12 @@ class PostTests(OfflineCase):
                 self.assertEqual(ie._extract_m3u8_formats.call_args.args[0], 'https://video.candfans.jp' + path)
                 self.assertEqual(ie._extract_m3u8_formats.call_args.kwargs['m3u8_id'], field)
 
-    def test_false_permission_blocks_known_relative_hls_before_manifest(self):
-        ie = self.ie()
-        ie._download_json = Mock(return_value=synthetic_post(
-            is_downloadable=False,
-            attachments=[{'default': '/user/100001/post/974904/synthetic-main.m3u8'}],
-        ))
-        ie._extract_m3u8_formats = Mock()
-        with self.assertRaises(ExtractorError) as err:
-            ie._real_extract(POST_URL)
-        self.assertTrue(err.exception.expected)
-        ie._extract_m3u8_formats.assert_not_called()
+    def test_false_downloadable_flag_allows_known_relative_hls(self):
+        path = '/user/100001/post/974904/synthetic-main.m3u8'
+        ie, result = self.post(synthetic_post(
+            is_downloadable=False, attachments=[{'default': path}]))
+        self.assertTrue(result['formats'])
+        self.assertEqual(ie._extract_m3u8_formats.call_args.args[0], 'https://video.candfans.jp' + path)
 
     def test_metadata_only_known_relative_hls_never_fetches_or_exposes_manifest(self):
         ie, result = self.post(synthetic_post(attachments=[{
@@ -222,15 +213,12 @@ class PostTests(OfflineCase):
                     ie._real_extract(POST_URL)
                 ie._extract_m3u8_formats.assert_not_called()
 
-    def test_unverified_permission_values_are_not_truthy_bypass(self):
-        for value in (False, None, 0, 1, 'true', 'false', '1'):
+    def test_downloadable_values_do_not_gate_returned_hls(self):
+        for value in (False, True, None, 0, 1, 'true', 'false', '1'):
             with self.subTest(value=value):
-                ie = self.ie()
-                ie._download_json = Mock(return_value=synthetic_post(is_downloadable=value))
-                ie._extract_m3u8_formats = Mock()
-                with self.assertRaises(ExtractorError):
-                    ie._real_extract(POST_URL)
-                ie._extract_m3u8_formats.assert_not_called()
+                ie, result = self.post(synthetic_post(is_downloadable=value))
+                self.assertTrue(result['formats'])
+                ie._extract_m3u8_formats.assert_called_once()
 
     def test_denied_viewing_never_extracts_hls(self):
         for value in (False, None, 0, '1', 'true'):
@@ -242,11 +230,12 @@ class PostTests(OfflineCase):
                     ie._real_extract(POST_URL)
                 ie._extract_m3u8_formats.assert_not_called()
 
-    def test_missing_permission_is_blocked(self):
+    def test_missing_downloadable_flag_does_not_gate_hls(self):
         body = synthetic_post()
         del body['data']['post']['is_downloadable']
-        with self.assertRaises(ExtractorError):
-            self.post(body)
+        ie, result = self.post(body)
+        self.assertTrue(result['formats'])
+        ie._extract_m3u8_formats.assert_called_once()
 
     def test_empty_missing_and_preview_only_never_fall_back(self):
         for attachments in ([], None, [{'preview': 'https://media.example.invalid/preview.m3u8'}],
@@ -265,8 +254,24 @@ class PostTests(OfflineCase):
         self.assertTrue(result['formats'])
 
     def test_failed_hls_does_not_become_preview(self):
-        with self.assertRaises(ExtractorError):
+        with self.assertRaises(ExtractorError) as err:
             self.post(synthetic_post(), hls=[])
+        self.assertEqual(str(err.exception),
+                         'CandFans returned no playable HLS formats: manifest returned no formats')
+
+    def test_hls_http_failure_reports_status_without_inventing_access_reason(self):
+        ie = self.ie()
+        ie._download_json = Mock(return_value=synthetic_post())
+        cause = HTTPError(Response(io.BytesIO(b'private CDN response'),
+                                   'https://media.example.invalid/a.m3u8', {}, 403))
+        ie._extract_m3u8_formats = Mock(side_effect=ExtractorError(
+            'private manifest failure', cause=cause))
+        with self.assertRaises(ExtractorError) as err:
+            ie._real_extract(POST_URL)
+        self.assertTrue(err.exception.expected)
+        self.assertEqual(str(err.exception), 'CandFans returned no playable HLS formats: HTTP 403')
+        ie._extract_m3u8_formats.assert_called_once()
+        self.assertIs(ie._extract_m3u8_formats.call_args.kwargs['fatal'], True)
 
     def test_malformed_post_responses(self):
         for body in (None, [], {}, {'status': 'SUCCESS', 'data': []},
@@ -426,8 +431,10 @@ class PostTests(OfflineCase):
                     self.post(synthetic_post(), args={'candfanspost': {'metadata_only': [value]}})
 
     def test_drm_formats_filtered_and_drm_only_rejected(self):
-        with self.assertRaises(ExtractorError):
+        with self.assertRaises(ExtractorError) as err:
             self.post(synthetic_post(), hls=[{'url': 'https://media.example.invalid/locked.m3u8', 'has_drm': True}])
+        self.assertEqual(str(err.exception),
+                         'CandFans returned no playable HLS formats: all formats are marked DRM')
         _, result = self.post(synthetic_post(), hls=[
             {'url': 'https://media.example.invalid/locked.m3u8', 'has_drm': True},
             {'url': 'https://media.example.invalid/clear.m3u8', 'has_drm': False},

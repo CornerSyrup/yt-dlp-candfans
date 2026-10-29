@@ -310,17 +310,16 @@ class CandFansPostIE(_CandFansBaseIE):
             return info
         browsing = post.get('can_browsing')
         if not (browsing is True or type(browsing) is int and browsing == 1):
-            raise ExtractorError('CandFans access denied: can_browsing is not granted; check authorised cookies and entitlement', expected=True)
-        if post.get('is_downloadable') is not True:
-            raise ExtractorError(
-                'CandFans download permission is not explicitly granted (is_downloadable is not true); '
-                'its semantics are unverified. Use candfanspost:metadata_only=true for metadata only', expected=True)
+            raise ExtractorError('CandFans API can_browsing is not granted', expected=True)
+        # User-tested evidence: is_downloadable is not a media access gate.
+        # Use the returned attachments and actual HTTP/HLS results unchanged.
         media = self._media(post)
         if not media:
             raise ExtractorError(
-                'CandFans has no accessible full HLS attachments; check authorised cookies and entitlement. '
+                'CandFans API returned no usable full HLS attachments. '
                 'Preview/sample fallback is disabled', expected=True)
         entries = []
+        failures = []
         for identity, variants in media:
             media_id = post_id if len(media) == 1 else f'{post_id}-{hashlib.sha256(identity.encode()).hexdigest()[:16]}'
             entry = dict(info, id=media_id)
@@ -328,10 +327,15 @@ class CandFansPostIE(_CandFansBaseIE):
             for label, manifest in variants:
                 try:
                     extracted = self._extract_m3u8_formats(
-                        manifest, media_id, 'mp4', m3u8_id=label, fatal=False)
-                except ExtractorError:
-                    # A restricted/missing manifest never triggers another API or preview route.
+                        manifest, media_id, 'mp4', m3u8_id=label, fatal=True)
+                except ExtractorError as error:
+                    status = getattr(error.cause, 'status', None) or getattr(error.cause, 'code', None)
+                    failures.append(f'HTTP {status}' if isinstance(status, int) else 'HLS extraction error')
                     continue
+                if not extracted:
+                    failures.append('manifest returned no formats')
+                elif all(fmt.get('has_drm') for fmt in extracted):
+                    failures.append('all formats are marked DRM')
                 for fmt in extracted:
                     if not fmt.get('has_drm'):
                         formats.append(fmt)
@@ -350,8 +354,7 @@ class CandFansPostIE(_CandFansBaseIE):
             entries.append(entry)
         if not entries:
             raise ExtractorError(
-                'CandFans HLS manifest unavailable, forbidden, unsupported or DRM-protected; '
-                'no access or DRM bypass is attempted', expected=True)
+                'CandFans returned no playable HLS formats: ' + ', '.join(dict.fromkeys(failures)), expected=True)
         if len(media) == 1:
             return entries[0]
         return self.playlist_result(entries, post_id, info['title'], info.get('description'))

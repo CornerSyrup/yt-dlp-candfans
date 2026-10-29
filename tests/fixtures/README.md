@@ -9,8 +9,8 @@
 - `timeline_empty.json`、`auth_unauthenticated_minimal.json` 僅保留無個資的終止／未登入形狀。未登入回應的真實 HTTP status 未知。
 - `fixture_inventory.json` 的 SHA256 對應 **sanitised timeline**，不能用來聲稱與原始回應相同。
 
-1322820 只有 URL 證據，沒有 API 回應 fixture。原始樣本的 `is_downloadable` 均為 false；這些公開測試仍保留 false，不能據此推論允許下載。
+1322820 只有 URL 證據，沒有 API 回應 fixture。原始樣本的 `is_downloadable` 均為 false，公開資料保留原值。使用者確認相同原始 fixture 已在其他程式下載媒體，此欄位不作為 plugin 下載阻擋條件；完整平台語意仍未知。
 
-測試程式中所有 permission=true、user lookup、HTTP 錯誤、多附件與 HLS manifests 均為明確的 **synthetic** 案例。user-by-code schema、thumbnail 真實 host、Sanctum Cookie 細節及 permission flags 的平台語意仍未經 live 驗證。
+測試程式中欄位變體、user lookup、HTTP 錯誤、多附件與 HLS manifests 均為明確的 **synthetic** 案例。user-by-code schema、Sanctum Cookie 細節及 flags 的完整平台語意仍未經 live 驗證；使用者已確認單篇 thumbnail 與影片的 `https://video.candfans.jp` origin，詳見已知證據文件。
 
 測試嚴禁未 mock 的 network request；合成 HLS 在記憶體中解析，不下載片段，不讀取真實 Cookie，也不接觸付費內容。此目錄不包含 Cookie、session 或 signed production media URL。

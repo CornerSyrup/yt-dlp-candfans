@@ -36,8 +36,8 @@ def _fixture_open(self, request):
         body = json.loads((_root / 'post_974904_sanitised.json').read_text(encoding='utf-8'))
         if _mode == 'allowed':
             post = body['data']['post']
-            post.update(is_downloadable=True, title='Synthetic permitted offline test',
-                        contents_text='Synthetic permission and manifest; no live evidence.',
+            post.update(title='Synthetic offline manifest test',
+                        contents_text='Synthetic manifest; unchanged false flag; no live evidence.',
                         attachments=[{'default': 'https://media.example.invalid/test/master.m3u8'}],
                         post_attachments=[])
         payload = json.dumps(body).encode()
@@ -141,8 +141,9 @@ def run(executable: Path, archive: Path, destination: Path):
         assert 'media.example.invalid' not in metadata.stdout
         assert '.m3u8' not in metadata.stdout
 
-        blocked = invoke('permission-false-blocked', common + [post_url], expected=1)
-        assert 'is_downloadable' in blocked.stderr
+        false_flag = invoke('false-downloadable-hls-dry-run', common + [post_url], mode='allowed')
+        assert json.loads(false_flag.stdout)['formats']
+        assert expected_post['is_downloadable'] is False
 
         allowed = invoke('synthetic-hls-dry-run', common + [post_url], mode='allowed')
         parsed = json.loads(allowed.stdout)
@@ -157,8 +158,8 @@ def run(executable: Path, archive: Path, destination: Path):
         assert [entry['id'] for entry in parsed['entries']] == [
             '832491', '832478', '832465', '832461', '832159', '832156', '832053', '832050', '832036']
         requests = [json.loads(line) for line in (payload_root / 'requests.jsonl').read_text().splitlines()]
-        assert len(requests) == 6, f'Unexpected number of fixture requests: {len(requests)}'
-        assert sum('.invalid' in request['url'] for request in requests) == 1
+        assert len(requests) == 7, f'Unexpected number of fixture requests: {len(requests)}'
+        assert sum('.invalid' in request['url'] for request in requests) == 2
         report['request_count'] = len(requests)
         report['requests'] = requests
 
