@@ -1,57 +1,57 @@
-# yt-dlp-candfans 使用範例目錄。所有指令皆為註解；執行或 dot-source 此檔不會連線或下載。
-# 請挑選所需區塊，移除開頭 # 後在 yt-dlp.exe 所在目錄手動執行。
-# 不會自動登入；API 需要登入時，cookies.txt 由你自行準備；不需要 Cookie 時省略 --cookies。不要分享真實 Cookie 或 JSON 日誌。
-# yt-dlp-<site/function> 是常見命名慣例，非官方強制 ZIP 名稱；內部 namespace 與 IE 類名不變。
-# 若已安裝舊名 candfans.zip，可自行選擇在同一資料夾更名為 yt-dlp-candfans.zip，勿安裝第二份。
+# yt-dlp-candfans の使用例です。すべてのコマンドはコメントです。このファイルを実行または dot-source しても通信やダウンロードは発生しません。
+# 必要なブロックを選び、先頭の # を取り除いて、yt-dlp.exe のあるディレクトリーで手動実行してください。
+# 自動ログインは行いません。API にログインが必要な場合は cookies.txt を用意し、Cookie が不要なら --cookies を省略してください。実際の Cookie や JSON ログを共有しないでください。
+# yt-dlp-<site/function> は一般的な命名慣例であり、公式に必須とされる ZIP 名ではありません。内部の namespace と IE クラス名は変わりません。
+# 旧名の candfans.zip をインストール済みの場合は、同じフォルダーで yt-dlp-candfans.zip に変更できます。重複してインストールしないでください。
 
-# 1. 安裝：yt-dlp-candfans.zip 保持 ZIP，不解壓縮。
+# 1. インストール：yt-dlp-candfans.zip は展開せず、ZIP のまま配置します。
 # New-Item -ItemType Directory -Force '.\yt-dlp-plugins' | Out-Null
-# Copy-Item 'C:\請替換成實際路徑\yt-dlp-candfans.zip' '.\yt-dlp-plugins\yt-dlp-candfans.zip'
+# Copy-Item 'C:\実際のパスに置き換えてください\yt-dlp-candfans.zip' '.\yt-dlp-plugins\yt-dlp-candfans.zip'
 # .\yt-dlp.exe --ignore-config -v --list-extractors | Select-String 'CandFans|candfans'
-# 注意：yt-dlp2026.08.19 在載入 plugin 前列出 extractors，所以此 listing 不含 plugin。
-# 空結果不能判定安裝失敗。請在原始碼根目錄，以現有 Python 與 EXE 做離線 loader 驗證：
+# 注意：yt-dlp 2026.08.19 は plugin の読み込み前に extractors を列挙するため、この一覧に plugin は含まれません。
+# 結果が空でもインストール失敗とは判断できません。ソースのルートで、既存の Python と EXE によるオフライン loader 検証を実行してください。
 # python scripts/verify_windows.py `
-#     --exe 'C:\請替換成實際路徑\yt-dlp.exe' `
+#     --exe 'C:\実際のパスに置き換えてください\yt-dlp.exe' `
 #     --zip 'dist/yt-dlp-candfans.zip' --output '.test-tmp/windows'
-# 不安裝套件；正式 ZIP 單獨配合本機 JSON 證明載入，再加入 test-only transport 測 mock CLI。
-# 此腳本使用暫存 plugin 目錄，不修改既有安裝；輸出含 verification.json 與 stdout/stderr。
+# この検証スクリプトはパッケージをインストールしません。まず正式 ZIP とローカル JSON だけで読み込みを確認し、その後に test-only transport を追加して mock CLI を検証します。
+# 一時的な plugin ディレクトリーを使用し、既存のインストールは変更しません。出力には verification.json と stdout/stderr が含まれます。
 
-# 2. 手動 Netscape cookie jar：七欄以真正 Tab 分隔，名稱與屬性必須使用真實登入資料。
+# 2. 手動の Netscape cookie jar：7 列を実際の Tab で区切り、名前と属性には実際のログイン情報を使用します。
 # # Netscape HTTP Cookie File
 # .candfans.jp<TAB>TRUE<TAB>/<TAB>TRUE<TAB>0<TAB>YOUR_ACTUAL_COOKIE_NAME<TAB>YOUR_VALUE
-# 此行中的 <TAB> 僅為說明，不是可直接使用的 Cookie。
+# 上記の <TAB> は説明用であり、そのまま使用できる Cookie ではありません。
 
-# 3. 安全 metadata-only：不取 manifest，不輸出附件 URL；formats=[] 為預期行為。
+# 3. metadata-only：manifest の取得や添付メディア URL の出力を行いません。formats=[] は想定どおりの結果です。
 # .\yt-dlp.exe --ignore-config `
 #     --cookies '.\cookies.txt' `
 #     --extractor-args 'candfanspost:metadata_only=true' `
 #     --ignore-no-formats-error --skip-download --dump-json `
 #     'https://candfans.jp/posts/comment/show/974904'
 
-# 4. Profile 列舉：請替換 YOUR_CREATOR_CODE 與已查證的數字 YOUR_VERIFIED_USER_ID。
-#    不加 user_id 可嘗試 lookup，但其真實 JSON 結構尚未驗證。
+# 4. Profile の列挙：YOUR_CREATOR_CODE と、確認済みの数値 YOUR_VERIFIED_USER_ID を置き換えてください。
+#    user_id を省略すると lookup を試みますが、実際の JSON 構造は未検証です。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     --flat-playlist --dump-single-json `
 #     --extractor-args 'candfansprofile:user_id=YOUR_VERIFIED_USER_ID' `
 #     'https://candfans.jp/YOUR_CREATOR_CODE'
 
-# 5. 一般 skip-download 仍可能請求 manifest；is_downloadable=false 不會阻擋解析。
-#    依 API 附件與實際 HTTP/HLS 結果列格式，不從此欄位推測失敗原因。
+# 5. 通常の skip-download でも manifest を要求する場合があります。is_downloadable=false は解析を阻止しません。
+#    API の添付情報と実際の HTTP/HLS 結果から形式を列挙し、このフィールドから失敗原因を推測しません。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     --list-formats 'https://candfans.jp/posts/comment/show/974904'
 
-# 6. 單篇下載：用於你有權下載的媒體，目前仍檢查 can_browsing=1/true。
-#    僅處理 attachments.default/low；相符 /user/<id>/post/<id>/<filename>.m3u8 使用已知 origin。
-#    該 origin https://video.candfans.jp 由使用者確認 974904 範例，本機另以 API fixture 回放完成單篇與九篇個人頁項目 CDN 下載。
-#    空附件不會改讀 contents_path1/sample/preview；不依 is_downloadable 阻擋。
-#    -N 8 為 concurrent fragments；-c 續傳；MP4 remux 需要 FFmpeg。
+# 6. 単一投稿のダウンロード：ダウンロード権限のあるメディアに使用してください。現在は can_browsing=1/true を確認します。
+#    attachments.default/low のみを処理します。/user/<id>/post/<id>/<filename>.m3u8 に一致するパスには、確認済みの origin を使用します。
+#    origin https://video.candfans.jp は、投稿 974904 の例でユーザーが確認しています。ローカルでは API fixture の再生を通じて、単一投稿と個人ページの 9 投稿を CDN からダウンロード済みです。
+#    添付情報が空でも contents_path1/sample/preview に切り替えません。is_downloadable による阻止は行いません。
+#    -N 8 はセグメントの並列数、-c は再開です。MP4 への remux には FFmpeg が必要です。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     -N 8 -c --download-archive '.\downloaded.txt' `
 #     --remux-video mp4 --windows-filenames --trim-filenames 150 `
 #     -o '.\downloads\%(uploader_id)s\%(id)s.%(ext)s' `
 #     'https://candfans.jp/posts/comment/show/974904'
 
-# 7. Profile 批次：每篇仍檢查 can_browsing 與實際附件；--ignore-errors 略過不可下載項，應閱讀略過原因。
+# 7. Profile の一括ダウンロード：各投稿の can_browsing と実際の添付情報を確認します。--ignore-errors は失敗した項目をスキップするため、理由をログで確認してください。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     --extractor-args 'candfansprofile:user_id=YOUR_VERIFIED_USER_ID' `
 #     -N 8 -c --download-archive '.\downloaded.txt' --ignore-errors `
@@ -59,34 +59,34 @@
 #     -o '.\downloads\%(uploader_id)s\%(id)s.%(ext)s' `
 #     'https://candfans.jp/YOUR_CREATOR_CODE'
 
-# 8. 載入與內嵌封面：API 的絕對 HTTPS thumbnail_file 可直接使用。
-#    使用者確認 974904 的 /user/1422016/post/974904/thumbnail.jpg 位於 https://video.candfans.jp。
-#    相符 /user/<user_id>/post/<post_id>/thumbnail.jpg 預設使用該 origin，不需指定參數。
-#    模式要求正整數 ID 與精確檔名，不核對其他 API 欄位的 ID。
-#    本機另以 API fixture 回放完成單篇與九篇個人頁項目 CDN 下載，live API 未驗證。
-#    yt-dlp 原生 --embed-thumbnail 下載並內嵌，需要現有 FFmpeg；plugin 不會強制啟用。
-#    is_downloadable=false 不會阻擋影片下載；伺服器錯誤依實際結果回報。
+# 8. サムネイルの取得と埋め込み：API の絶対 HTTPS thumbnail_file はそのまま使用できます。
+#    ユーザーは、974904 の /user/1422016/post/974904/thumbnail.jpg が https://video.candfans.jp にあることを確認しています。
+#    /user/<user_id>/post/<post_id>/thumbnail.jpg に一致するパスには、引数を指定せずにこの origin を使用します。
+#    このパターンには正の整数 ID と正確なファイル名が必要です。他の API フィールドの ID との照合は行いません。
+#    ローカルでは API fixture の再生により、単一投稿と個人ページの 9 投稿を CDN からダウンロード済みです。live API は未検証です。
+#    yt-dlp 標準の --embed-thumbnail で取得・埋め込みを行います。既存の FFmpeg が必要です。plugin はこのオプションを自動で有効にしません。
+#    is_downloadable=false は動画のダウンロードを阻止しません。サーバーエラーは実際の結果に従って報告します。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     -N 8 -c --download-archive '.\downloaded.txt' `
 #     --embed-thumbnail --remux-video mp4 `
 #     --windows-filenames --trim-filenames 150 `
 #     -o '.\downloads\%(uploader_id)s\%(id)s.%(ext)s' `
 #     'https://candfans.jp/posts/comment/show/974904'
-#    其他來源或不符模式的相對路徑，可明確加上以下 override；必須替換成已查證的來源：
+#    別の origin やパターンに一致しない相対パスには、以下の override を明示できます。確認済みの origin に置き換えてください。
 #    --extractor-args 'candfanspost:thumbnail_origin=https://YOUR_VERIFIED_THUMBNAIL_HOST'
-#    只接受 HTTPS origin，不含 path/query/fragment/帳密；未提供可用來源時省略封面。
-#    需轉 JPEG 可另加 --convert-thumbnails jpg。
-#    metadata-only 可輸出解析後 URL，但下列指令不儲存影片或內嵌封面：
+#    path/query/fragment/認証情報を含まない HTTPS origin のみを受け付けます。使用可能な origin がなければサムネイルを省略します。
+#    JPEG に変換する場合は --convert-thumbnails jpg を追加できます。
+#    metadata-only でも解決後の URL は出力できますが、以下のコマンドは動画の保存やサムネイルの埋め込みを行いません。
 # .\yt-dlp.exe --ignore-config --cookies '.\cookies.txt' `
 #     --extractor-args 'candfanspost:metadata_only=true' `
 #     --ignore-no-formats-error --skip-download --dump-json `
 #     'https://candfans.jp/posts/comment/show/974904'
 
-# 9. 另一個使用者層級安裝位置，擇一使用，避免重複安裝：
+# 9. 別のユーザー単位のインストール先です。いずれか一方を使い、重複インストールを避けてください。
 # New-Item -ItemType Directory -Force "$env:APPDATA\yt-dlp\plugins" | Out-Null
-# Copy-Item 'C:\請替換成實際路徑\yt-dlp-candfans.zip' "$env:APPDATA\yt-dlp\plugins\yt-dlp-candfans.zip"
+# Copy-Item 'C:\実際のパスに置き換えてください\yt-dlp-candfans.zip' "$env:APPDATA\yt-dlp\plugins\yt-dlp-candfans.zip"
 
-# 10. 原始碼根目錄：建立測試環境，離線 unit tests 與重建 ZIP。
+# 10. ソースのルートでテスト環境を作成し、オフライン unit tests と ZIP の再作成を行います。以下には依存パッケージのインストールが含まれます。
 # python -m venv .venv
 # .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 # .\.venv\Scripts\python.exe -m unittest discover -s tests -v

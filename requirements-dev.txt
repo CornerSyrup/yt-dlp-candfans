@@ -1,2 +1,2 @@
-# Runtime itself is supplied by official yt-dlp.exe. Only offline test development needs pip.
+# 実行環境は公式 yt-dlp.exe に含まれます。pip はオフラインテストの開発環境でのみ使用します。
 yt-dlp==2026.8.19
