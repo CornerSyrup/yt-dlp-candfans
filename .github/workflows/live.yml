@@ -1,0 +1,148 @@
+name: 実際の API と動画の検証
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/live.yml'
+      - 'scripts/verify_live.py'
+      - 'yt_dlp_plugins/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: candfans-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    name: 公式 Windows EXE で実際の動画を検証
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: 必須 Secrets の有無を確認
+        id: inputs
+        shell: pwsh
+        env:
+          CANDFANS_COOKIES: ${{ secrets.CANDFANS_COOKIES }}
+          CANDFANS_CREATOR_URL: ${{ secrets.CANDFANS_CREATOR_URL }}
+          CANDFANS_POST_URL: ${{ secrets.CANDFANS_POST_URL }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $required = @('CANDFANS_COOKIES', 'CANDFANS_CREATOR_URL', 'CANDFANS_POST_URL')
+          $missing = @($required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+          if ($missing.Count -gt 0) {
+            'ready=false' >> $env:GITHUB_OUTPUT
+            "SKIPPED: missing repository secrets: $($missing -join ', ')" >> $env:GITHUB_STEP_SUMMARY
+            '実際の API・動画の検証は実行されていません。Secrets の設定後、Run workflow で再実行してください。' >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            'ready=true' >> $env:GITHUB_OUTPUT
+          }
+      - name: ソースを取得
+        if: steps.inputs.outputs.ready == 'true'
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Python を準備
+        if: steps.inputs.outputs.ready == 'true'
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: 配布 ZIP をビルドして検証
+        if: steps.inputs.outputs.ready == 'true'
+        run: |
+          python scripts/build.py --output dist/yt-dlp-candfans.zip
+          if ($LASTEXITCODE -ne 0) { throw 'Plugin build failed' }
+          python scripts/verify_archive.py --archive dist/yt-dlp-candfans.zip
+          if ($LASTEXITCODE -ne 0) { throw 'Plugin archive verification failed' }
+      - name: 固定バージョンの実行ファイルを一時領域に準備
+        if: steps.inputs.outputs.ready == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $privateRoot = Join-Path $env:RUNNER_TEMP "candfans-live-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          New-Item -ItemType Directory -Path $privateRoot -Force | Out-Null
+          $exe = Join-Path $privateRoot 'yt-dlp.exe'
+          Invoke-WebRequest 'https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.exe' -OutFile $exe
+          if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash -ne 'f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d') {
+            throw 'Official yt-dlp.exe checksum mismatch'
+          }
+          $version = & $exe --ignore-config --version
+          if ($LASTEXITCODE -ne 0 -or $version -ne '2026.10.26') { throw 'Unexpected official yt-dlp version' }
+          $archive = Join-Path $privateRoot 'ffmpeg.zip'
+          Invoke-WebRequest 'https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-10-29-00-02/ffmpeg-N-128170-g0ea6606418-win64-gpl.zip' -OutFile $archive
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne '068dacc12c2c0e3c13ae74654a4bb8f996b564b91c46ba0a9ea69166deeee960') {
+            throw 'FFmpeg archive checksum mismatch'
+          }
+          $expanded = Join-Path $privateRoot 'ffmpeg'
+          Expand-Archive -LiteralPath $archive -DestinationPath $expanded
+          $ffmpeg = @(Get-ChildItem -LiteralPath $expanded -Recurse -File -Filter ffmpeg.exe)
+          if ($ffmpeg.Count -ne 1) { throw 'Expected exactly one FFmpeg executable' }
+          $ffprobe = Join-Path $ffmpeg[0].DirectoryName 'ffprobe.exe'
+          if (-not (Test-Path -LiteralPath $ffprobe -PathType Leaf)) { throw 'Missing ffprobe executable' }
+          "CANDFANS_LIVE_TOOLS=$($ffmpeg[0].DirectoryName)" >> $env:GITHUB_ENV
+      - name: 実際の API から動画とサムネイルを取得して検証
+        if: steps.inputs.outputs.ready == 'true'
+        shell: pwsh
+        env:
+          CANDFANS_COOKIES: ${{ secrets.CANDFANS_COOKIES }}
+          CANDFANS_CREATOR_URL: ${{ secrets.CANDFANS_CREATOR_URL }}
+          CANDFANS_POST_URL: ${{ secrets.CANDFANS_POST_URL }}
+          CANDFANS_CREATOR_ID: ${{ secrets.CANDFANS_CREATOR_ID }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $privateRoot = Join-Path $env:RUNNER_TEMP "candfans-live-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $cookieFile = Join-Path $privateRoot 'cookies.txt'
+          [IO.File]::WriteAllText($cookieFile, $env:CANDFANS_COOKIES, [Text.UTF8Encoding]::new($false))
+          $arguments = @('scripts/verify_live.py', '--exe', (Join-Path $privateRoot 'yt-dlp.exe'),
+            '--zip', 'dist/yt-dlp-candfans.zip', '--cookie-file', $cookieFile,
+            '--creator-url', $env:CANDFANS_CREATOR_URL.Trim(), '--post-url', $env:CANDFANS_POST_URL.Trim(),
+            '--output', (Join-Path $privateRoot 'report'), '--ffmpeg-location', $env:CANDFANS_LIVE_TOOLS)
+          if (-not [string]::IsNullOrWhiteSpace($env:CANDFANS_CREATOR_ID)) {
+            $arguments += @('--user-id', $env:CANDFANS_CREATOR_ID.Trim())
+          }
+          foreach ($name in @('CANDFANS_COOKIES', 'CANDFANS_CREATOR_URL', 'CANDFANS_POST_URL', 'CANDFANS_CREATOR_ID')) {
+            [Environment]::SetEnvironmentVariable($name, $null)
+          }
+          & python @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Live verification failed; see the sanitized summary' }
+      - name: 個人情報を含まない結果のみを公開
+        if: always() && steps.inputs.outputs.ready == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $privateRoot = Join-Path $env:RUNNER_TEMP "candfans-live-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $summary = Join-Path $privateRoot 'report/summary.json'
+          New-Item -ItemType Directory -Path .ci-live-report -Force | Out-Null
+          if (Test-Path -LiteralPath $summary -PathType Leaf) {
+            Copy-Item -LiteralPath $summary -Destination .ci-live-report/summary.json
+            '### 実際の API・動画の検証結果' >> $env:GITHUB_STEP_SUMMARY
+            '```json' >> $env:GITHUB_STEP_SUMMARY
+            Get-Content -LiteralPath $summary >> $env:GITHUB_STEP_SUMMARY
+            '```' >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            '{"passed":false,"failure":"setup_or_preflight_failed"}' | Set-Content .ci-live-report/summary.json -Encoding utf8
+            'FAILED: setup or preflight did not complete; no successful live validation.' >> $env:GITHUB_STEP_SUMMARY
+          }
+      - name: 一時ファイルを削除
+        if: always() && steps.inputs.outputs.ready == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tempRoot = [IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd([IO.Path]::DirectorySeparatorChar)
+          $privateRoot = [IO.Path]::GetFullPath((Join-Path $tempRoot "candfans-live-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"))
+          if (-not $privateRoot.StartsWith($tempRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Refusing cleanup outside runner temporary directory'
+          }
+          if (Test-Path -LiteralPath $privateRoot) { Remove-Item -LiteralPath $privateRoot -Recurse -Force }
+      - name: 検証サマリーを保存
+        if: always() && steps.inputs.outputs.ready == 'true'
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
+        with:
+          name: live-verification-summary
+          path: .ci-live-report/summary.json
+          if-no-files-found: error
+          retention-days: 7

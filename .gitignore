@@ -226,6 +226,8 @@ session*.txt
 .test-tmp/
 .ci-tools/
 .ci-verification/
+.ci-live-report/
+candfans-live-*/
 verification*/
 downloaded*.txt
 *.mp4

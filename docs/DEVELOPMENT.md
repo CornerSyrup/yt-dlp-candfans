@@ -30,6 +30,17 @@ python scripts/verify_thumbnail.py --exe 'C:\Tools\yt-dlp.exe' `
 
 これらのスクリプトはテスト専用の通信処理で API とメディアを置き換えます。サムネイル検証では、1 秒の合成 HLS 動画と JPEG を使用し、`attached_pic` と抽出画像の SHA256 を確認します。実際の CandFans API や CDN の検証とは別のテストです。配布 ZIP にテスト用通信処理や fixture は含まれません。
 
+## 実メディア検証スクリプトのオフライン統合テスト
+
+`verify_live.py` のダウンロードと検査処理は、次のスクリプトで実際の Windows EXE を使い、二つの合成ケースとして検証できます。API とメディアはテスト専用の通信処理へ置き換え、実際の CandFans には接続しません。既存の FFmpeg と ffprobe が必要です。
+
+```powershell
+python scripts/verify_live_offline.py --exe 'C:\Tools\yt-dlp.exe' `
+    --zip dist/yt-dlp-candfans.zip --output .test-tmp/live-offline
+```
+
+FFmpeg が PATH にない場合は `--ffmpeg-location 'C:\Tools\ffmpeg\bin'` を追加します。この検証は Secrets を使う実際の API／CDN のテストとは別です。
+
 ## CI とリリース
 
 [CI](https://github.com/CornerSyrup/yt-dlp-candfans/actions/workflows/ci.yml) は Ubuntu／Windows、Python 3.12／3.13 でオフラインテストと ZIP の検証を実行します。公式 Windows EXE の読み込みと CLI 動作も fixture で確認します。
@@ -37,3 +48,5 @@ python scripts/verify_thumbnail.py --exe 'C:\Tools\yt-dlp.exe' `
 保守担当者が CI の成功を確認し、未使用の `v*` バージョンタグを push すると、Release workflow が同じタグのソースを再検証し、`yt-dlp-candfans.zip` と `SHA256SUMS.txt` を公開します。公開にはタグに対応するコミットを使用し、秘密情報や実際のメディアを含めません。
 
 API の処理を変更するときは、匿名化した根拠と再現テストを追加し、未確認の構造やフィールドの意味を確定事項として扱わないでください。
+
+実際の API と CDN を確認する専用ワークフローの起動条件と Secrets の設定は、[実メディアテストの設定と実行](LIVE_TESTS.md) を参照してください。
